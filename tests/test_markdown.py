@@ -215,6 +215,40 @@ def test_inline_code_in_table_cells() -> None:
     assert result == expected
 
 
+def render_plain(renderable: RenderableType) -> list[str]:
+    console = Console(width=100, file=io.StringIO(), color_system=None)
+    console.print(renderable)
+    return [line.strip() for line in console.file.getvalue().splitlines()]
+
+
+def test_imperfect_tables() -> None:
+    """Tables that are valid GFM but not neatly formatted are still rendered as tables."""
+    markdown = Markdown(
+        """\
+unpadded, ragged rows:
+
+| arm | params | status | suite |
+|---|---:|---|---|
+| dense | 123.6M | ok | v2 |
+| pkm | - | FAIL: ChildFailedError:  |
+| moe | 166.1M | ok | v2 | extra |
+
+no outer pipes, directly after a paragraph:
+a | b
+--|--:
+1 | 2
+"""
+    )
+    lines = render_plain(markdown)
+    assert not any("|" in line for line in lines)
+    assert "arm    params  status                   suite" in lines
+    assert "dense  123.6M  ok                       v2" in lines
+    assert "pkm         -  FAIL: ChildFailedError:" in lines
+    assert "moe    166.1M  ok                       v2" in lines
+    assert "a  b" in lines
+    assert "1  2" in lines
+
+
 if __name__ == "__main__":
     markdown = Markdown(MARKDOWN)
     rendered = render(markdown)
